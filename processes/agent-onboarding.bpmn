@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  IAOP example BPMN 2.0 process: agent onboarding skeleton.
+
+  PLACEHOLDER foundation artifact — illustrates the conventions for real
+  process definitions:
+    - process id format: iaop.<context>.<process-name>
+    - candidate starter groups reference Keycloak realm roles
+    - service tasks delegate to iaop-workflow-service / domain services
+    - every process has explicit start/end events and error boundaries
+
+  Deployed to Flowable by iaop-workflow-service (see that repo).
+-->
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  id="Definitions_iaop_onboarding"
+                  targetNamespace="https://agentapr.github.com/iaop/bpmn">
+
+  <bpmn:process id="iaop.onboarding.agent-onboarding"
+                name="Agent Onboarding"
+                isExecutable="true">
+
+    <bpmn:startEvent id="StartEvent_1" name="Onboarding requested">
+      <bpmn:outgoing>flow_start_screening</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <bpmn:userTask id="Task_Screening" name="Compliance screening">
+      <bpmn:incoming>flow_start_screening</bpmn:incoming>
+      <bpmn:outgoing>flow_screening_approved</bpmn:outgoing>
+      <bpmn:outgoing>flow_screening_rejected</bpmn:outgoing>
+      <bpmn:potentialOwner>
+        <bpmn:resourceAssignmentExpression>
+          <bpmn:formalExpression>group:compliance</bpmn:formalExpression>
+        </bpmn:resourceAssignmentExpression>
+      </bpmn:potentialOwner>
+    </bpmn:userTask>
+
+    <bpmn:exclusiveGateway id="Gateway_Screening" name="Screening result"/>
+
+    <bpmn:serviceTask id="Task_CreateAgentProfile"
+                      name="Create agent profile"
+                      implementation="##createAgentProfile"/>
+
+    <bpmn:userTask id="Task_Agreement" name="Agency agreement signing">
+      <bpmn:incoming>flow_profile_agreement</bpmn:incoming>
+      <bpmn:outgoing>flow_agreement_signed</bpmn:outgoing>
+      <bpmn:outgoing>flow_agreement_declined</bpmn:outgoing>
+      <bpmn:potentialOwner>
+        <bpmn:resourceAssignmentExpression>
+          <bpmn:formalExpression>group:agency-admin</bpmn:formalExpression>
+        </bpmn:resourceAssignmentExpression>
+      </bpmn:potentialOwner>
+    </bpmn:userTask>
+
+    <bpmn:serviceTask id="Task_ActivateAgent"
+                      name="Activate agent"
+                      implementation="##activateAgent"/>
+
+    <bpmn:endEvent id="EndEvent_Activated" name="Agent activated"/>
+    <bpmn:endEvent id="EndEvent_Rejected" name="Onboarding rejected"/>
+    <bpmn:endEvent id="EndEvent_Declined" name="Agreement declined"/>
+
+    <bpmn:sequenceFlow id="flow_start_screening" sourceRef="StartEvent_1" targetRef="Task_Screening"/>
+    <bpmn:sequenceFlow id="flow_screening_approved" sourceRef="Task_Screening" targetRef="Gateway_Screening"/>
+    <bpmn:sequenceFlow id="flow_screening_rejected" sourceRef="Task_Screening" targetRef="Gateway_Screening"/>
+    <bpmn:sequenceFlow id="flow_approved_profile" sourceRef="Gateway_Screening" targetRef="Task_CreateAgentProfile">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">${screeningResult == 'APPROVED'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_rejected_end" sourceRef="Gateway_Screening" targetRef="EndEvent_Rejected">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">${screeningResult == 'REJECTED'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_profile_agreement" sourceRef="Task_CreateAgentProfile" targetRef="Task_Agreement"/>
+    <bpmn:sequenceFlow id="flow_agreement_signed" sourceRef="Task_Agreement" targetRef="Task_ActivateAgent"/>
+    <bpmn:sequenceFlow id="flow_agreement_declined" sourceRef="Task_Agreement" targetRef="Gateway_Screening"/>
+    <bpmn:sequenceFlow id="flow_activate_end" sourceRef="Task_ActivateAgent" targetRef="EndEvent_Activated"/>
+    <bpmn:sequenceFlow id="flow_declined_end" sourceRef="Gateway_Screening" targetRef="EndEvent_Declined">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">${agreementDeclined == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="iaop.onboarding.agent-onboarding">
+      <bpmndi:BPMNShape id="StartEvent_1_di" bpmnElement="StartEvent_1">
+        <dc:Bounds x="152" y="102" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Screening_di" bpmnElement="Task_Screening">
+        <dc:Bounds x="240" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_Screening_di" bpmnElement="Gateway_Screening" isMarkerVisible="true">
+        <dc:Bounds x="390" y="95" width="50" height="50"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_CreateAgentProfile_di" bpmnElement="Task_CreateAgentProfile">
+        <dc:Bounds x="490" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Agreement_di" bpmnElement="Task_Agreement">
+        <dc:Bounds x="640" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_ActivateAgent_di" bpmnElement="Task_ActivateAgent">
+        <dc:Bounds x="790" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_Activated_di" bpmnElement="EndEvent_Activated">
+        <dc:Bounds x="942" y="102" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_Rejected_di" bpmnElement="EndEvent_Rejected">
+        <dc:Bounds x="412" y="202" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_Declined_di" bpmnElement="EndEvent_Declined">
+        <dc:Bounds x="742" y="202" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_start_screening_di" bpmnElement="flow_start_screening">
+        <di:waypoint x="188" y="120"/><di:waypoint x="240" y="120"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_screening_approved_di" bpmnElement="flow_screening_approved">
+        <di:waypoint x="340" y="120"/><di:waypoint x="390" y="120"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_approved_profile_di" bpmnElement="flow_approved_profile">
+        <di:waypoint x="440" y="120"/><di:waypoint x="490" y="120"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_rejected_end_di" bpmnElement="flow_rejected_end">
+        <di:waypoint x="415" y="145"/><di:waypoint x="415" y="202"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_profile_agreement_di" bpmnElement="flow_profile_agreement">
+        <di:waypoint x="590" y="120"/><di:waypoint x="640" y="120"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_agreement_signed_di" bpmnElement="flow_agreement_signed">
+        <di:waypoint x="740" y="120"/><di:waypoint x="790" y="120"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_activate_end_di" bpmnElement="flow_activate_end">
+        <di:waypoint x="890" y="120"/><di:waypoint x="942" y="120"/>
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

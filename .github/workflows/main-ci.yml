@@ -1,0 +1,35 @@
+name: Main CI
+
+# Validates BPMN/DMN definition files. Runs ONLY on pushes to main.
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: main-ci-${{ github.repository }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: BPMN/DMN validation
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate BPMN XML
+        run: |
+          python - <<'PY'
+          import glob, sys
+          import xml.etree.ElementTree as ET
+          files = glob.glob('processes/*.bpmn') + glob.glob('decisions/*.dmn')
+          assert files, 'no BPMN/DMN files found'
+          for f in files:
+              root = ET.parse(f).getroot()
+              tag = root.tag.lower()
+              assert 'bpmn' in tag or 'dmn' in tag or 'definitions' in tag, f'{f}: unexpected root {root.tag}'
+              print(f'OK {f}')
+          PY
